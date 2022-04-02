@@ -11,9 +11,9 @@
 
 #define PORT     8080
 #define BUFFER_SIZE 1024
-#define TIMEOUT_MS 1000
+#define TIMEOUT_MS 10000
 #define CRC_SIZE 4
-#define MAX_SENT_REPEAT 50
+#define MAX_SENT_REPEAT 100
 
 
 // send Error message to client (buffer filled with 0)
