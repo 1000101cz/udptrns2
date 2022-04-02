@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define PORT     98080
+#define PORT     32222
 #define BUFFER_SIZE 1024
 #define TIMEOUT_MS 1000
 #define CRC_SIZE 4
