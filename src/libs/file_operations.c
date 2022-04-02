@@ -16,13 +16,15 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
         // repeat if packet transfer failed
         repeat_error = 0;
         while(1) {
-            // clear buffer
-            for (int i  = 0; i < BUFFER_SIZE; i++) { buffer[i] = '\0'; packet_number_crc[i] = '\0'; }
+            if (repeat_error == 0) {
+              // clear buffer
+              for (int i  = 0; i < BUFFER_SIZE; i++) { buffer[i] = '\0'; packet_number_crc[i] = '\0'; }
 
-            // fill buffer
-            for (int i  = 0; i < BUFFER_SIZE && pointer != n_o_char; i++) {
-                buffer[i] = getc(read_file);
-                pointer++;
+              // fill buffer
+              for (int i  = 0; i < BUFFER_SIZE && pointer != n_o_char; i++) {
+                  buffer[i] = getc(read_file);
+                  pointer++;
+              }
             }
 
             // send packet number and CRC
@@ -94,6 +96,7 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
               }
             }
             crc_received = atol(crc_buffer);
+            printf("%ld %ld\n",packet_number,crc_received);
 
             // clear buffers
             for (int i = 0; i < 4; i++) {
