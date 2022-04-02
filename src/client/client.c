@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
           fprintf(stderr,"Handshake failed, cannot connect to server.\nTerminating..\n");
           exit(100);
         }
-        usleep(10);  // <<<<<<<<<<<<<<<<<<<<,
+        //usleep(10);  // <<<<<<<<<<<<<<<<<<<<
         try_number++;
     }
     printf("Connection estahblished...\n\nLength of file: %ld\n",n_o_char);

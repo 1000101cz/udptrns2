@@ -30,7 +30,6 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
             // send packet number and CRC
             CRC_value = compute_CRC_buffer(&buffer,BUFFER_SIZE);// compute CRC
             sprintf((char*)packet_number_crc, "%ld %ld",number_of_packets, CRC_value);
-            printf("%ld %ld\n",number_of_packets, CRC_value);
             sendto(socket_descriptor, packet_number_crc, sizeof(unsigned char)*(BUFFER_SIZE),MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
 
             // send buffer
@@ -96,7 +95,6 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
               }
             }
             crc_received = atol(crc_buffer);
-            printf("%ld %ld\n",packet_number,crc_received);
 
             // clear buffers
             for (int i = 0; i < 4; i++) {
@@ -130,7 +128,6 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
             else {
               total_error_count++;
               send_error_message(socket_descriptor, client_address);
-              //printf("CRC did not match!\n");
               packet_counter--;
             }
         }
