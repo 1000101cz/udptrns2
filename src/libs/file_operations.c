@@ -28,6 +28,7 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
             // send packet number and CRC
             CRC_value = compute_CRC_buffer(&buffer,BUFFER_SIZE);// compute CRC
             sprintf((char*)packet_number_crc, "%ld %ld",number_of_packets, CRC_value);
+            printf("%ld %ld\n",number_of_packets, CRC_value);
             sendto(socket_descriptor, packet_number_crc, sizeof(unsigned char)*(BUFFER_SIZE),MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
 
             // send buffer
@@ -64,8 +65,8 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
 void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in client_address, int len, long message_length) {
     unsigned char buffer[BUFFER_SIZE] = {'\0'};
     unsigned char packet_number_crc[BUFFER_SIZE] = {'\0'};
-    unsigned char packet_number_buffer[4];
-    unsigned char crc_buffer[4];
+    unsigned char packet_number_buffer[20];
+    unsigned char crc_buffer[20];
     long counter = 0;
     long packet_counter = 0;
     long crc_received, packet_number, crc_computed;
