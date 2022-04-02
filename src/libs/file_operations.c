@@ -46,7 +46,9 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
               break;
             }
             if (repeat_error >= MAX_SENT_REPEAT) {
-              printf("Communication failed! Terminating..\n");
+              fprintf(stderr,"Communication failed! Terminating..\n");
+              fprintf(stderr,"Packets sent successfuly: %d\n",number_of_packets);
+              fprintf(stderr,"Number of errors: %ld\n",total_error_count);
               exit(100);
             }
         }
@@ -124,7 +126,7 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
             else {
               total_error_count++;
               send_error_message(socket_descriptor, client_address);
-              printf("CRC did not match!\n");
+              //printf("CRC did not match!\n");
               packet_counter--;
             }
         }

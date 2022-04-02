@@ -13,7 +13,7 @@
 #define BUFFER_SIZE 1024
 #define TIMEOUT_MS 10000
 #define CRC_SIZE 4
-#define MAX_SENT_REPEAT 100
+#define MAX_SENT_REPEAT 10000
 
 
 // send Error message to client (buffer filled with 0)
