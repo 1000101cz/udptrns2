@@ -11,6 +11,7 @@
 
 #define PORT     32222
 #define BUFFER_SIZE 1024
+#define SUB_BUFFER_SIZE 40
 #define TIMEOUT_MS 1000
 #define CRC_SIZE 4
 #define MAX_SENT_REPEAT 20

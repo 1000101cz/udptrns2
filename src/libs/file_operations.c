@@ -4,8 +4,9 @@
 void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct sockaddr_in server_address, int len) {
     long pointer = 0;
     int number_of_packets=1;
-    unsigned char buffer[BUFFER_SIZE] = {'\0'};
-    unsigned char packet_number_crc[BUFFER_SIZE] = {'\0'};
+    unsigned char buffer[BUFFER_SIZE - SUB_BUFFER_SIZE] = {'\0'};
+    unsigned char sub_buffer[SUB_BUFFER_SIZE] = {'\0'};
+    unsigned char big_buffer[BUFFER_SIZE] = {'\0'};
     FILE *read_file = fopen(file_dest,"rb");
     unsigned long CRC_value = 0;
     _Bool sending_file = 1;
@@ -18,22 +19,29 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
         while(1) {
             if (repeat_error == 0) {
               // clear buffer
-              for (int i  = 0; i < BUFFER_SIZE; i++) { buffer[i] = '\0'; packet_number_crc[i] = '\0'; }
+              for (int i  = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) { buffer[i] = '\0'; }
 
               // fill buffer
-              for (int i  = 0; i < BUFFER_SIZE && pointer != n_o_char; i++) {
+              for (int i  = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE && pointer != n_o_char; i++) {
                   buffer[i] = getc(read_file);
                   pointer++;
               }
             }
 
-            // send packet number and CRC
-            CRC_value = compute_CRC_buffer(&buffer,BUFFER_SIZE);// compute CRC
-            sprintf((char*)packet_number_crc, "%ld %ld",number_of_packets, CRC_value);
-            sendto(socket_descriptor, packet_number_crc, sizeof(unsigned char)*(BUFFER_SIZE),MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
+            // create CRC and pucket number subbuffer
+            CRC_value = compute_CRC_buffer(&buffer,BUFFER_SIZE-SUB_BUFFER_SIZE);// compute CRC
+            sprintf((unsigned char*)sub_buffer, "%ld %ld",number_of_packets, CRC_value);
 
-            // send buffer
-            sendto(socket_descriptor, buffer, sizeof(unsigned char)*(BUFFER_SIZE),MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
+            // connect buffers (data + CRC)
+            for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
+              big_buffer[i] = buffer[i];
+            }
+            for (int i = BUFFER_SIZE-SUB_BUFFER_SIZE; i < BUFFER_SIZE; i++) {
+              big_buffer[i] = sub_buffer[i-(BUFFER_SIZE-SUB_BUFFER_SIZE)];
+            }
+
+            // send buffer with data, CRC and packet number
+            sendto(socket_descriptor, big_buffer, sizeof(unsigned char)*(BUFFER_SIZE),MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
             number_of_packets++;
 
             // wait for confirmation
@@ -64,10 +72,10 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
 
 // receive file from client
 void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in client_address, int len, long message_length) {
-    unsigned char buffer[BUFFER_SIZE] = {'\0'};
+    unsigned char buffer[BUFFER_SIZE-SUB_BUFFER_SIZE] = {'\0'};
     unsigned char packet_number_crc[BUFFER_SIZE] = {'\0'};
-    unsigned char packet_number_buffer[20];
-    unsigned char crc_buffer[20];
+    unsigned char packet_number_buffer[SUB_BUFFER_SIZE/2];
+    unsigned char crc_buffer[SUB_BUFFER_SIZE/2];
     long counter = 0;
     long packet_counter = 0;
     long crc_received, packet_number, crc_computed;
@@ -78,17 +86,22 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
 
     while (receiving_file) {
         while (1) {
-            // receive packet number and CRC
-            recvfrom(socket_descriptor, packet_number_crc, sizeof(unsigned char)*BUFFER_SIZE,MSG_WAITALL, ( struct sockaddr *) &client_address,(unsigned int*)&len);
-            for (int i = 0; i < 20; i++) {
+            // receive packet with data number and CRC
+            recvfrom(socket_descriptor, packet_number_crc, sizeof(unsigned char)*(BUFFER_SIZE),MSG_WAITALL, ( struct sockaddr *) &client_address,(unsigned int*)&len);
+            packet_counter++;
+
+            // separate number
+            for (int i = BUFFER_SIZE-SUB_BUFFER_SIZE; i < BUFFER_SIZE; i++) {
               if (packet_number_crc[i] != ' ') {
-                  packet_number_buffer[i] = packet_number_crc[i];
+                  packet_number_buffer[i-(BUFFER_SIZE-SUB_BUFFER_SIZE)] = packet_number_crc[i];
               } else { break; }
             }
             packet_number = atol(packet_number_buffer);
-            for (int i = 0; i < 20; i++) {
+
+            // separate CRC
+            for (int i = BUFFER_SIZE - SUB_BUFFER_SIZE; i < BUFFER_SIZE; i++) {
               if (packet_number_crc[i] == ' ') {
-                for (int j = i + 1; j < 41; j++) {
+                for (int j = i; j < i+SUB_BUFFER_SIZE/2; j++) {
                   crc_buffer[j-1-i] = packet_number_crc[j];
                 }
                 break;
@@ -96,23 +109,25 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
             }
             crc_received = atol(crc_buffer);
 
+
             // clear buffers
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 20; i++) {
               packet_number_buffer[i] = '\0';
               crc_buffer[i] = '\0';
             }
 
-            // receive data packet
-            recvfrom(socket_descriptor, buffer, sizeof(unsigned char)*BUFFER_SIZE,MSG_WAITALL, ( struct sockaddr *) &client_address,(unsigned int*)&len);
-            packet_counter++;
+            // separate data
+            for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
+              buffer[i] = packet_number_crc[i];
+            }
 
             // compute CRC
-            crc_computed =  compute_CRC_buffer(&buffer,BUFFER_SIZE);
+            crc_computed =  compute_CRC_buffer(&buffer,BUFFER_SIZE-SUB_BUFFER_SIZE);
 
             // check CRC and file number
             if (crc_computed == crc_received && packet_number == packet_counter) {
               send_success_message(socket_descriptor, client_address);
-              for (int i = 0; i < BUFFER_SIZE; i++) {
+              for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
                   if (counter >= message_length) {
                     receiving_file = 0;
                     break;
