@@ -142,7 +142,11 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
             }
             else {
               total_error_count++;
-              send_error_message(socket_descriptor, client_address);
+              if (packet_number < packet_counter) { // case that client did not receive last success message
+                send_success_message(socket_descriptor, client_address);
+              } else {
+                send_error_message(socket_descriptor, client_address);
+              }
               packet_counter--;
             }
         }
