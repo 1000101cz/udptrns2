@@ -17,6 +17,12 @@
 #define CRC_SIZE 4
 #define MAX_SENT_REPEAT 20
 
+//#define GENERATE_ERRORS
+#ifdef GENERATE_ERRORS
+  #define DONT_SENT_CONF 900 // 1 in value (program will sleep for TIMEOUT each time)
+  #define CORRUPT_PACKET 50 // 1 in value
+#endif
+
 
 // send Error message to client (buffer filled with 0)
 void send_error_message(int socket_descriptor, struct sockaddr_in client_address);

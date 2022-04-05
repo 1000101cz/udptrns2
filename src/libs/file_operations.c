@@ -5,6 +5,7 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
     long pointer = 0;
     int number_of_packets=1;
     unsigned char buffer[BUFFER_SIZE - SUB_BUFFER_SIZE] = {'\0'};
+    unsigned char buffer_corrupted[BUFFER_SIZE - SUB_BUFFER_SIZE] = {'\0'};
     unsigned char sub_buffer[SUB_BUFFER_SIZE] = {'\0'};
     unsigned char big_buffer[BUFFER_SIZE] = {'\0'};
     FILE *read_file = fopen(file_dest,"rb");
@@ -32,13 +33,35 @@ void send_file(char *file_dest, long n_o_char, int socket_descriptor, struct soc
             CRC_value = compute_CRC_buffer(&buffer,BUFFER_SIZE-SUB_BUFFER_SIZE);// compute CRC
             sprintf((unsigned char*)sub_buffer, "%ld %ld",number_of_packets, CRC_value);
 
-            // connect buffers (data + CRC)
-            for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
-              big_buffer[i] = buffer[i];
-            }
-            for (int i = BUFFER_SIZE-SUB_BUFFER_SIZE; i < BUFFER_SIZE; i++) {
-              big_buffer[i] = sub_buffer[i-(BUFFER_SIZE-SUB_BUFFER_SIZE)];
-            }
+            #ifdef GENERATE_ERRORS
+                        for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
+                          buffer_corrupted[i] = buffer[i];
+                        }
+                        if (repeat_error == 0 && number_of_packets%CORRUPT_PACKET==0) {
+                          printf("Corrupting packet %d\n",number_of_packets);
+                          buffer_corrupted[127] = ']';
+                          buffer_corrupted[270] = 'P';
+                          buffer_corrupted[600] = '_';
+                        }
+                        // connect buffers (data + CRC)
+                        for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
+                          big_buffer[i] = buffer_corrupted[i];
+                        }
+                        for (int i = BUFFER_SIZE-SUB_BUFFER_SIZE; i < BUFFER_SIZE; i++) {
+                          big_buffer[i] = sub_buffer[i-(BUFFER_SIZE-SUB_BUFFER_SIZE)];
+                        }
+            #endif
+
+
+            #ifndef GENERATE_ERRORS
+                        // connect buffers (data + CRC)
+                        for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
+                          big_buffer[i] = buffer[i];
+                        }
+                        for (int i = BUFFER_SIZE-SUB_BUFFER_SIZE; i < BUFFER_SIZE; i++) {
+                          big_buffer[i] = sub_buffer[i-(BUFFER_SIZE-SUB_BUFFER_SIZE)];
+                        }
+            #endif
 
             // send buffer with data, CRC and packet number
             sendto(socket_descriptor, big_buffer, sizeof(unsigned char)*(BUFFER_SIZE),MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
@@ -83,9 +106,16 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
     FILE *new_file;
     new_file = fopen(file_dest,"wb");
     _Bool receiving_file = 1;
+    int packet_error_count = 0;
 
     while (receiving_file) {
+        packet_error_count = 0;
         while (1) {
+            if (packet_error_count >= MAX_SENT_REPEAT-1) {
+                fprintf(stderr,"ERROR: Max sent repeat value reached. Terminating..\n");
+                exit(100);
+            }
+
             // receive packet with data number and CRC
             recvfrom(socket_descriptor, packet_number_crc, sizeof(unsigned char)*(BUFFER_SIZE),MSG_WAITALL, ( struct sockaddr *) &client_address,(unsigned int*)&len);
             packet_counter++;
@@ -126,29 +156,49 @@ void receive_message(char *file_dest, int socket_descriptor, struct sockaddr_in 
 
             // check CRC and file number
             if (crc_computed == crc_received && packet_number == packet_counter) {
-              send_success_message(socket_descriptor, client_address);
-              for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
-                  if (counter >= message_length) {
-                    receiving_file = 0;
-                    break;
-                  } // reached end of message
-                  fputc(buffer[i],new_file);
-                  counter++;
-              }
-              if (counter >= message_length) {  // reached end of message
-                receiving_file = 0;
                 break;
-              }
             }
             else {
               total_error_count++;
-              if (packet_number < packet_counter) { // case that client did not receive last success message
+              packet_error_count++;
+              packet_counter--;
+              printf("Numbers: %ld  %ld\n",packet_number,packet_counter);
+              if (packet_number <= packet_counter) { // case that client did not receive last success message
                 send_success_message(socket_descriptor, client_address);
+                printf("Received packet again - client error\n");
               } else {
                 send_error_message(socket_descriptor, client_address);
+                printf("CRC ERROR! Packet %ld\n",packet_number);
               }
-              packet_counter--;
             }
+        }
+        // packet received
+
+        if (packet_error_count > 0) {
+          printf("CRC repaired. Packet %ld\n",packet_number);
+        }
+
+        #ifdef GENERATE_ERRORS
+            if (packet_counter % DONT_SENT_CONF != 0) {
+                send_success_message(socket_descriptor, client_address);
+            }
+        #endif
+
+        #ifndef GENERATE_ERRORS
+            send_success_message(socket_descriptor, client_address);
+        #endif
+
+        for (int i = 0; i < BUFFER_SIZE-SUB_BUFFER_SIZE; i++) {
+            if (counter >= message_length) {
+              receiving_file = 0;
+              break;
+            } // reached end of message
+            fputc(buffer[i],new_file);
+            counter++;
+        }
+        if (counter >= message_length) {  // reached end of message
+          receiving_file = 0;
+          break;
         }
     }
     printf("Data packets received: %ld\n",packet_counter+1);

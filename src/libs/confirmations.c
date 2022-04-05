@@ -15,6 +15,8 @@ void send_success_message(int socket_descriptor, struct sockaddr_in client_addre
 // recieve confirmation that operation succeded
 _Bool get_confirmation(int socket_descriptor, struct sockaddr_in server_address, int len) {
   unsigned char str[BUFFER_SIZE] = {'\0'};
+  
+  // Set socket timeout
   struct timeval tv;
   tv.tv_sec = TIMEOUT_S;
   tv.tv_usec =  TIMEOUT_MS * 1000;
