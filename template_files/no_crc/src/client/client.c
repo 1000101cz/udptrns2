@@ -9,7 +9,6 @@
 #include <netinet/in.h>
 
 #include "../sha256/sha256.h"
-#include "../crc32/crc32.h"
 #include "../libs/confirmations.h"
 #include "../libs/file_operations.h"
 
@@ -61,19 +60,7 @@ int main(int argc, char *argv[]) {
 
 
     // send server length of file
-    int try_number = 0;
-    while (1) {
-        sendto(socket_descriptor, str, sizeof(unsigned char)*BUFFER_SIZE,MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
-        if (get_confirmation(socket_descriptor, server_address, len)) {
-          break; // repeat if Success confirmation not received from server
-        }
-        if (try_number >= MAX_SENT_REPEAT) {
-          fprintf(stderr,"Handshake failed, cannot connect to server.\nTerminating..\n");
-          exit(100);
-        }
-        //usleep(10);  // <<<<<<<<<<<<<<<<<<<<
-        try_number++;
-    }
+    sendto(socket_descriptor, str, sizeof(unsigned char)*BUFFER_SIZE,MSG_CONFIRM, (const struct sockaddr *) &server_address,sizeof(server_address));
     printf("Connection estahblished...\n\nLength of file: %ld\n",n_o_char);
 
 
