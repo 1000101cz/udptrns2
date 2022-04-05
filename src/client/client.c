@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -42,6 +43,8 @@ int main(int argc, char *argv[]) {
     memset(&client_address, 0, sizeof(client_address));
     int len = sizeof(server_address);
 
+    clock_t start, stop;
+
     // fill server information
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(PORT);
@@ -75,7 +78,11 @@ int main(int argc, char *argv[]) {
 
 
     // send file
+    start = clock();
     send_file(argv[2], n_o_char, socket_descriptor, server_address, len);
+    stop = clock();
+    float time_taken = (float)(stop - start)/1000000;
+    printf("Time taken: %.2f s\n", time_taken);
 
 
     // send SHA256 hash of file to server
