@@ -16,8 +16,8 @@ void send_success_message(int socket_descriptor, struct sockaddr_in client_addre
 _Bool get_confirmation(int socket_descriptor, struct sockaddr_in server_address, int len) {
   unsigned char str[BUFFER_SIZE] = {'\0'};
   struct timeval tv;
-  tv.tv_sec = 0;
-  tv.tv_usec = TIMEOUT_MS * 1000;
+  tv.tv_sec = TIMEOUT_S;
+  tv.tv_usec =  TIMEOUT_MS * 1000;
   setsockopt(socket_descriptor, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv));
 
   recvfrom(socket_descriptor, str, sizeof(unsigned char)*BUFFER_SIZE,MSG_WAITALL, ( struct sockaddr *) &server_address,(unsigned int*)&len);
